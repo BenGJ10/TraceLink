@@ -48,8 +48,8 @@ public class UserDetailsImplementation implements UserDetails {
         return new UserDetailsImplementation(
                 user.getId(),
                 user.getUsername(),
-                user.getEmail(),
                 user.getPassword(),
+                user.getEmail(),
                 Collections.singletonList(authority)
         );
     }
