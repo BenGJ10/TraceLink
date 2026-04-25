@@ -7,13 +7,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
 
+@Service
 public class UserDetailsServiceImplementation implements UserDetailsService {
 
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
+    @Override
     @Transactional
     /*
         This method is called by Spring Security to load user details during authentication. It retrieves the user from the database using the provided username,
