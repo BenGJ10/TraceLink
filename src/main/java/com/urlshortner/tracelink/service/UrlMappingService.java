@@ -1,6 +1,8 @@
 package com.urlshortner.tracelink.service;
 
+import com.urlshortner.tracelink.dto.ClickEventDTO;
 import com.urlshortner.tracelink.dto.UrlMappingDTO;
+import com.urlshortner.tracelink.models.ClickEvent;
 import com.urlshortner.tracelink.models.UrlMapping;
 import com.urlshortner.tracelink.models.User;
 import com.urlshortner.tracelink.repository.ClickEventRepository;
@@ -8,15 +10,21 @@ import com.urlshortner.tracelink.repository.UrlMappingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 @Service
 public class UrlMappingService {
 
     @Autowired
     private UrlMappingRepository urlMappingRepository;
-//    private ClickEventRepository clickEventRepository;
+
+    @Autowired
+    private ClickEventRepository clickEventRepository;
 
     /*
         Create a new short URL mapping for the given original URL and user. The method generates a
@@ -65,4 +73,56 @@ public class UrlMappingService {
         }
         return shortUrl.toString();
     }
+    
+    public List<UrlMappingDTO> getUrlsByUser(User user) {
+        // For every UrlMapping entity associated with the given user, convert it to a UrlMappingDTO and return the list of DTOs
+        return urlMappingRepository.findByUser(user).stream()
+                .map(this::convertToDto)
+                .toList();
+    }
+
+    /*
+        Retrieve click events for a specific short URL within a given date range. The method finds the
+        UrlMapping entity based on the provided short URL, retrieves the click events associated with that
+        UrlMapping that occurred between the specified start and end dates, groups the click events by date,
+        counts the number of clicks for each date, and returns a list of ClickEventDTOs containing the date and click count.
+    */
+    public List<ClickEventDTO> getClickEventsByDate(String shortUrl, LocalDateTime start, LocalDateTime end) {
+        // Find the UrlMapping entity based on the provided short URL
+        UrlMapping urlMapping = urlMappingRepository.findByShortUrl(shortUrl);
+        if (urlMapping != null) {
+            return clickEventRepository.findByUrlMappingAndClickDateBetween(urlMapping, start, end).stream()
+                    // Group the click events by date and count the number of clicks for each date, then map the results to ClickEventDTOs
+                    .collect(Collectors.groupingBy(click -> click.getClickDate().toLocalDate(), Collectors.counting()))
+                    .entrySet().stream()
+                    .map(entry -> {
+                        // A new ClickEventDTO for each date, setting the click date and count based on the grouped results
+                        ClickEventDTO clickEventDTO = new ClickEventDTO();
+                        clickEventDTO.setClickDate(entry.getKey());
+                        clickEventDTO.setCount(entry.getValue());
+                        return clickEventDTO;
+                    })
+                    .collect(Collectors.toList());
+        }
+        return null;
+    }
+
+    /*
+        Retrieve the total number of clicks for all URL mappings associated with a specific user within a given date range. 
+        The method finds all UrlMapping entities for the user, retrieves the click events associated with those UrlMappings that occurred between the specified start and end dates, 
+        groups the click events by date, counts the number of clicks for each date.
+
+    */
+    public Map<LocalDate, Long> getTotalClicksByUserAndDate(User user, LocalDate start, LocalDate end) {
+        // Find all UrlMapping entities for the given user
+        List<UrlMapping> urlMappings = urlMappingRepository.findByUser(user);
+        
+        // Retrieve the click events for the specified user and date range, then group the click events by date and count the number of clicks for each date
+        List<ClickEvent> clickEvents = clickEventRepository.findByUrlMappingInAndClickDateBetween(urlMappings, start.atStartOfDay(), end.plusDays(1).atStartOfDay());
+        
+        return clickEvents.stream()
+                .collect(Collectors.groupingBy(click -> click.getClickDate().toLocalDate(), Collectors.counting()));
+
+    }
+
 }
