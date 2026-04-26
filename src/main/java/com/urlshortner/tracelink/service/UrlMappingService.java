@@ -125,4 +125,27 @@ public class UrlMappingService {
 
     }
 
+    /*
+        Retrieve the original URL associated with a given short URL. The method finds the UrlMapping entity based on the provided short URL, 
+        increments the click count for that UrlMapping, saves the updated UrlMapping back to the database, creates a new ClickEvent entity to record the click event, 
+        and returns the UrlMapping entity containing the original URL and other details.
+    */
+    public UrlMapping getOriginalUrl(String shortUrl) {
+        // Retrieve the UrlMapping entity based on the provided short URL
+        UrlMapping urlMapping = urlMappingRepository.findByShortUrl(shortUrl);
+        
+        if (urlMapping != null) {
+            // Increment the click count for the UrlMapping, save the updated UrlMapping back to the database
+            urlMapping.setClickCount(urlMapping.getClickCount() + 1);
+            urlMappingRepository.save(urlMapping);
+            
+            // Create a new ClickEvent entity to record the click event, set the click date to the current date and time, associate it with the UrlMapping, and save it to the database
+            ClickEvent clickEvent = new ClickEvent();
+            clickEvent.setClickDate(LocalDateTime.now());
+            clickEvent.setUrlMapping(urlMapping);
+            clickEventRepository.save(clickEvent);
+        }
+        return urlMapping;
+    }
+
 }
