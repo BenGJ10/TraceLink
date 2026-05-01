@@ -90,4 +90,36 @@ public class UrlMappingController {
         Map<LocalDate, Long> totalClicks = urlMappingService.getTotalClicksByUserAndDate(user, start, end);
         return ResponseEntity.ok(totalClicks);
     }
+
+    /*
+        Delete a short URL mapping. Only the owner of the URL can delete it.
+        Returns 204 No Content on success, or 403 Forbidden if the user does not own the URL.
+    */
+    @DeleteMapping("/{shortUrl}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<Void> deleteUrl(@PathVariable String shortUrl, Principal principal) {
+        User user = userService.findByUsername(principal.getName());
+        boolean deleted = urlMappingService.deleteUrl(shortUrl, user);
+        if (deleted) {
+            return ResponseEntity.noContent().build();
+        } else {
+            return ResponseEntity.status(403).build();
+        }
+    }
+
+    /*
+        Toggle the active state of a short URL. Only the owner can toggle it.
+        Returns the updated UrlMappingDTO, or 403 if not the owner.
+    */
+    @PatchMapping("/{shortUrl}/toggle-active")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<UrlMappingDTO> toggleActive(@PathVariable String shortUrl, Principal principal) {
+        User user = userService.findByUsername(principal.getName());
+        UrlMappingDTO updated = urlMappingService.toggleActive(shortUrl, user);
+        if (updated != null) {
+            return ResponseEntity.ok(updated);
+        } else {
+            return ResponseEntity.status(403).build();
+        }
+    }
 }

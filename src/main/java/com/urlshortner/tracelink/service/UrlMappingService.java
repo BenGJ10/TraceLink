@@ -26,6 +26,9 @@ public class UrlMappingService {
     @Autowired
     private ClickEventRepository clickEventRepository;
 
+    @Autowired
+    private AnalyticsEventService analyticsEventService;
+
     /*
         Create a new short URL mapping for the given original URL and user. The method generates a
         short URL, saves the mapping to the database, and returns a DTO containing the mapping details.
@@ -53,6 +56,8 @@ public class UrlMappingService {
         urlMappingDTO.setClickCount(urlMapping.getClickCount());
         urlMappingDTO.setCreatedDate(urlMapping.getCreatedDate());
         urlMappingDTO.setUsername(urlMapping.getUser().getUsername());
+        urlMappingDTO.setActive(urlMapping.isActive());
+        urlMappingDTO.setExpiresAt(urlMapping.getExpiresAt());
         return urlMappingDTO;
     }
     
@@ -130,7 +135,7 @@ public class UrlMappingService {
         increments the click count for that UrlMapping, saves the updated UrlMapping back to the database, creates a new ClickEvent entity to record the click event, 
         and returns the UrlMapping entity containing the original URL and other details.
     */
-    public UrlMapping getOriginalUrl(String shortUrl) {
+    public UrlMapping getOriginalUrl(String shortUrl, String source, String ip, String userAgent) {
         // Retrieve the UrlMapping entity based on the provided short URL
         UrlMapping urlMapping = urlMappingRepository.findByShortUrl(shortUrl);
         
@@ -139,13 +144,38 @@ public class UrlMappingService {
             urlMapping.setClickCount(urlMapping.getClickCount() + 1);
             urlMappingRepository.save(urlMapping);
             
-            // Create a new ClickEvent entity to record the click event, set the click date to the current date and time, associate it with the UrlMapping, and save it to the database
-            ClickEvent clickEvent = new ClickEvent();
-            clickEvent.setClickDate(LocalDateTime.now());
-            clickEvent.setUrlMapping(urlMapping);
-            clickEventRepository.save(clickEvent);
+            // Delegate the event processing (GeoIP, UserAgent parsing, Saving) to the Async service
+            analyticsEventService.processClickEvent(urlMapping, source, ip, userAgent);
         }
         return urlMapping;
     }
 
+    public UrlMapping getUrlMapping(String shortUrl) {
+        return urlMappingRepository.findByShortUrl(shortUrl);
+    }
+
+    /*
+        Delete a URL mapping owned by the given user. Returns true if deleted, false if not found or not owned by user.
+    */
+    public boolean deleteUrl(String shortUrl, User user) {
+        UrlMapping urlMapping = urlMappingRepository.findByShortUrl(shortUrl);
+        if (urlMapping != null && urlMapping.getUser().getId().equals(user.getId())) {
+            urlMappingRepository.delete(urlMapping);
+            return true;
+        }
+        return false;
+    }
+
+    /*
+        Toggle the isActive state of a URL mapping. Returns the updated DTO, or null if not found / not owned.
+    */
+    public UrlMappingDTO toggleActive(String shortUrl, User user) {
+        UrlMapping urlMapping = urlMappingRepository.findByShortUrl(shortUrl);
+        if (urlMapping != null && urlMapping.getUser().getId().equals(user.getId())) {
+            urlMapping.setActive(!urlMapping.isActive());
+            urlMappingRepository.save(urlMapping);
+            return convertToDto(urlMapping);
+        }
+        return null;
+    }
 }
