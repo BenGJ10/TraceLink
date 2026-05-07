@@ -1,6 +1,9 @@
 package com.urlshortner.tracelink.models;
 
 import lombok.Data;
+
+import java.util.List;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -14,4 +17,7 @@ public class User {
     private String username;
     private String password;
     private String role = "ROLE_USER";
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UrlMapping> urlMappings;
 }
