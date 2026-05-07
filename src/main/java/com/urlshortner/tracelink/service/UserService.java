@@ -57,4 +57,36 @@ public class UserService {
                 () -> new UsernameNotFoundException("User not found with username: " + name)
         );
     }
+
+    /*
+        Method to update the username of an existing user. It checks if the new username is already taken.
+        If it is taken, it throws an IllegalArgumentException. Otherwise, it updates the user's username
+        and saves it to the database.
+    */
+    public User updateUsername(User user, String newUsername) {
+        if (userRepository.existsByUsername(newUsername)) {
+            throw new IllegalArgumentException("Username is already taken");
+        }
+        user.setUsername(newUsername);
+        return userRepository.save(user);
+    }
+
+    /*
+        Method to update the user's password. It verifies that the current password matches the one in the database.
+        If it does not match, an exception is thrown. If it matches, the new password is encoded and saved.
+    */
+    public void updatePassword(User user, String currentPassword, String newPassword) {
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    /*
+        Method to securely delete a user's account from the database.
+    */
+    public void deleteUser(User user) {
+        userRepository.delete(user);
+    }
 }
