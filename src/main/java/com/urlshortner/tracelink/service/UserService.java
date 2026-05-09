@@ -1,7 +1,9 @@
 package com.urlshortner.tracelink.service;
 
 import com.urlshortner.tracelink.dto.LoginRequest;
+import com.urlshortner.tracelink.models.PasswordResetToken;
 import com.urlshortner.tracelink.models.User;
+import com.urlshortner.tracelink.repository.PasswordResetTokenRepository;
 import com.urlshortner.tracelink.repository.UserRepository;
 import com.urlshortner.tracelink.security.jwt.JWTAuthenticationResponse;
 import com.urlshortner.tracelink.security.jwt.JWTUtils;
@@ -14,6 +16,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 @Service
 @AllArgsConstructor
 /*
@@ -23,6 +28,7 @@ public class UserService {
 
     private PasswordEncoder passwordEncoder;
     private UserRepository userRepository;
+    private PasswordResetTokenRepository tokenRepository;
     private AuthenticationManager authenticationManager;
     private JWTUtils jwtUtils;
 
@@ -88,5 +94,39 @@ public class UserService {
     */
     public void deleteUser(User user) {
         userRepository.delete(user);
+    }
+
+    public String generatePasswordResetToken(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No user found with this email"));
+                
+        // Delete any existing tokens for this user
+        tokenRepository.findByUser(user).ifPresent(tokenRepository::delete);
+
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setToken(token);
+        resetToken.setUser(user);
+        resetToken.setExpiryDate(LocalDateTime.now().plusHours(1));
+        tokenRepository.save(resetToken);
+
+        return token;
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        PasswordResetToken resetToken = tokenRepository.findByToken(token)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+
+        if (resetToken.isExpired()) {
+            tokenRepository.delete(resetToken);
+            throw new IllegalArgumentException("Token has expired");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Delete token after successful reset
+        tokenRepository.delete(resetToken);
     }
 }
