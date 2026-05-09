@@ -1,0 +1,26 @@
+# Build output
+target/
+
+# Frontend
+frontend/
+
+# Git
+.git/
+.gitignore
+
+# Scratch/Script files
+*.sh
+*.md
+test_api.sh
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.sts4-cache
+.settings/
+
+# Secrets & Local Configs
+.env*
+src/main/resources/application-dev.properties
+src/main/resources/application-local.properties

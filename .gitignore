@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment & Secrets ###
+.env.local
+.env.*.local
+frontend/.env.local
+frontend/.env.*.local
+src/main/resources/application-dev.properties
+
