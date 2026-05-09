@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.urlshortner.tracelink.models.User;
+import com.urlshortner.tracelink.service.ApiKeyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,6 +26,9 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private ApiKeyService apiKeyService;
+
     @Override
     /*
         This method is called for every incoming HTTP request. It checks for the presence of a JWT token in the Authorization header,
@@ -35,23 +40,32 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         try{
-            // Get JWT token from the Authorization header
-            String jwt = jwtTokenProvider.getJwtFromHeader(request);
+            // Get Token from the Authorization header (JWT or API Key)
+            String token = jwtTokenProvider.getJwtFromHeader(request);
 
-            // Validate the JWT token
-            if (jwt != null && jwtTokenProvider.validateToken(jwt)){
-                // Get username from the token and load user details
-                String username = jwtTokenProvider.getUserNameFromJwtToken(jwt);
+            if (token != null) {
+                String username = null;
                 
-                // Load user details from the database
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                // Check if it's an API Key (starts with tl_live_)
+                if (token.startsWith("tl_live_")) {
+                    java.util.Optional<User> userOpt = apiKeyService.verifyApiKey(token);
+                    if (userOpt.isPresent()) {
+                        username = userOpt.get().getUsername();
+                    }
+                } 
+                // Otherwise, validate it as a JWT token
+                else if (jwtTokenProvider.validateToken(token)) {
+                    username = jwtTokenProvider.getUserNameFromJwtToken(token);
+                }
                 
-                if (userDetails != null){
-                    // Create an authentication token and set it in the security context
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    // Set the authentication in the security context
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                // If we successfully resolved a username, authenticate the user
+                if (username != null) {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    if (userDetails != null) {
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             }
 
