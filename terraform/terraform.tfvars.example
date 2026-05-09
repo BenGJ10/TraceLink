@@ -1,0 +1,18 @@
+# terraform.tfvars.example
+
+# General
+aws_region  = "ap-south-1"
+environment = "prod"
+
+# RDS
+db_name                  = "tracelink_db"
+db_username              = "tracelink_admin"
+db_password              = "REPLACE_WITH_STRONG_PASSWORD"
+db_instance_class        = "db.t3.small"
+db_allocated_storage     = 20
+db_multi_az              = false
+db_backup_retention_days = 7
+
+# ECR
+ecr_backend_repo_name    = "tracelink-backend"
+ecr_image_retention_count = 10
