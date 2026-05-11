@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracelink-backend
+  namespace: tracelink
+  labels:
+    app: tracelink-backend
+    version: "1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tracelink-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1         # Can temporarily have 3 pods during an update
+      maxUnavailable: 0   # Zero-downtime deploys — always keep 2 pods running
+  template:
+    metadata:
+      labels:
+        app: tracelink-backend
+        version: "1.0"
+    spec:      
+      containers:
+        - name: tracelink-backend
+          # Replace with your actual ECR URL from: terraform output ecr_repository_url
+          image: 777112073796.dkr.ecr.ap-south-1.amazonaws.com/tracelink-backend:latest    
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+
+          # Environment Variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: tracelink-config
+
+          # Sensitive Environment Variables from Secret
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: tracelink-secrets
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: tracelink-secrets
+                  key: DB_PASS
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: tracelink-secrets
+                  key: JWT_SECRET
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tracelink-secrets
+                  key: MAIL_PASSWORD
+
+          # Resource Limits
+          # Spring Boot needs at least 256m to start; 512Mi is comfortable
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+
+          # Health Probes
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
+
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 3
+
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+
+      # Graceful shutdown — gives Spring Boot time to finish in-flight requests
+      terminationGracePeriodSeconds: 30

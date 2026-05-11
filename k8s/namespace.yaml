@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tracelink
+  labels:
+    app.kubernetes.io/name: tracelink
+    app.kubernetes.io/managed-by: kubectl

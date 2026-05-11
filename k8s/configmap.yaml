@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tracelink-config
+  namespace: tracelink
+  labels:
+    app: tracelink-backend
+data:
+  # Spring profile — always prod in Kubernetes
+  SPRING_PROFILES_ACTIVE: "prod"
+
+  # Database — replace with your actual RDS endpoint from: terraform output rds_host
+  DB_URL: "jdbc:mysql://tracelink-db.chacseyeyyia.ap-south-1.rds.amazonaws.com:3306/tracelink_db?useSSL=true&requireSSL=false&serverTimezone=UTC"
+
+  # Token expiration (48 hours)
+  JWT_EXPIRATION_MS: "172800000"
+
+  # Frontend URL — replace with your CloudFront domain or Route53 domain later
+  FRONTEND_URL: "http://localhost:5173"
+
+  # Email config
+  MAIL_USERNAME: "gjdevelopment1015@gmail.com"
+  CONTACT_EMAIL: "gjdevelopment1015@gmail.com"

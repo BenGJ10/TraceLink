@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracelink-backend
+  namespace: tracelink
+  labels:
+    app: tracelink-backend
+  annotations:
+    # AWS-specific annotations for the Network Load Balancer
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: tracelink-backend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80          # External port (standard HTTP)
+      targetPort: 8080  # Spring Boot internal port
