@@ -1,0 +1,93 @@
+version: 0.2
+
+# TraceLink Backend — CI/CD Pipeline
+#
+# Triggered by: GitHub push to main branch (via CodePipeline)
+# What it does:
+#   1. Run Maven tests
+#   2. Build Docker image (linux/amd64 — required for EKS nodes)
+#   3. Push to ECR with two tags: commit hash + latest
+#   4. Deploy to EKS using kubectl set image (proper rolling update)
+#   5. Wait for rollout to confirm deployment succeeded
+
+env:
+  variables:
+    AWS_REGION: "ap-south-1"
+    ECR_REGISTRY: "777112073796.dkr.ecr.ap-south-1.amazonaws.com"
+    ECR_REPO: "tracelink-backend"
+    CLUSTER_NAME: "tracelink-cluster"
+    DEPLOYMENT_NAME: "tracelink-backend"
+    NAMESPACE: "tracelink"
+    CONTAINER_NAME: "tracelink-backend"
+
+phases:
+
+  install:
+    runtime-versions:
+      java: corretto21
+    commands:
+      - echo "=== Installing kubectl ==="
+      - curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x kubectl
+      - mv kubectl /usr/local/bin/kubectl
+      - kubectl version --client
+
+  pre_build:
+    commands:
+      - echo "=== Authenticating with ECR ==="
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+      # Tag image with the first 7 chars of the commit hash — gives you version tracking
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=$COMMIT_HASH
+      - FULL_IMAGE="$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG"
+      - LATEST_IMAGE="$ECR_REGISTRY/$ECR_REPO:latest"
+
+      - echo "Image will be tagged as $IMAGE_TAG"
+
+  build:
+    commands:
+      - echo "=== Running Tests ==="
+      # Pipeline fails here if tests break — prevents bad code from deploying
+      - mvn clean test -B
+
+      - echo "=== Building Docker Image (linux/amd64) ==="
+      # --platform linux/amd64 is critical — EKS nodes run x86_64
+      # Without this, images built on Apple Silicon (M1/M2/M3) will fail on EKS
+      - docker build --platform linux/amd64 -t $ECR_REPO:$IMAGE_TAG .
+
+      - echo "=== Tagging Image ==="
+      - docker tag $ECR_REPO:$IMAGE_TAG $FULL_IMAGE
+      - docker tag $ECR_REPO:$IMAGE_TAG $LATEST_IMAGE
+
+  post_build:
+    commands:
+      - echo "=== Pushing to ECR ==="
+      - docker push $FULL_IMAGE    # versioned tag (e.g. a3f72b1)
+      - docker push $LATEST_IMAGE  # always points to the freshest build
+
+      - echo "=== Connecting to EKS ==="
+      - aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+
+      - echo "=== Deploying to EKS ==="
+      # kubectl set image:
+      #   - Updates ONLY the container image — nothing else in the deployment changes
+      #   - EKS performs a rolling update (respects maxUnavailable: 0, maxSurge: 1)
+      #   - New pods are created BEFORE old ones are terminated → zero downtime
+      #   - The image tag in the command creates a real audit trail in kubectl rollout history
+      - |
+        kubectl set image deployment/$DEPLOYMENT_NAME \
+          $CONTAINER_NAME=$FULL_IMAGE \
+          -n $NAMESPACE
+
+      - echo "=== Waiting for Rollout ==="
+      # This step blocks until deployment completes OR times out
+      # If the new pod fails health checks, this command exits non-zero → pipeline fails
+      # This means CodePipeline shows a real failure, not a false success
+      - kubectl rollout status deployment/$DEPLOYMENT_NAME -n $NAMESPACE --timeout=180s
+
+      - echo "=== Deployment Complete ==="
+      - echo "Deployed image $FULL_IMAGE to EKS cluster $CLUSTER_NAME"
+
+# Reports the rollout status in the CodeBuild logs
+reports: {}
