@@ -39,3 +39,5 @@ frontend/.env.local
 frontend/.env.*.local
 src/main/resources/application-dev.properties
 
+### k8s secrets
+k8s/secret.yaml
