@@ -18,6 +18,8 @@ data:
   # Frontend URL — replace with your CloudFront domain or Route53 domain later
   FRONTEND_URL: "https://tracelink.bengregoryjohn.in"
 
+  BASE_URL: "https://tl.bengregoryjohn.in"
+  
   # Email config
   MAIL_USERNAME: "gjdevelopment1015@gmail.com"
   CONTACT_EMAIL: "gjdevelopment1015@gmail.com"

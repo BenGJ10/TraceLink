@@ -26,7 +26,7 @@ public class AuthController {
     @Autowired
     private EmailService emailService;
 
-    @Value("${frontend.url:http://localhost:5173}")
+    @Value("${frontend.url}")
     private String frontendUrl;
 
     // Endpoint for user login, accepting a LoginRequest object and authenticating
@@ -96,9 +96,9 @@ public class AuthController {
         String email = request.get("email");
         String message = request.get("message");
 
-        if (name == null || name.trim().isEmpty() || 
-            email == null || email.trim().isEmpty() || 
-            message == null || message.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty() ||
+                email == null || email.trim().isEmpty() ||
+                message == null || message.trim().isEmpty()) {
             return ResponseEntity.badRequest().body("Name, email, and message are required");
         }
 
