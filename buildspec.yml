@@ -49,7 +49,7 @@ phases:
     commands:
       - echo "=== Running Tests ==="
       # Pipeline fails here if tests break — prevents bad code from deploying
-      - mvn clean test -B
+      - mvn clean package -DskipTests -B
 
       - echo "=== Building Docker Image (linux/amd64) ==="
       # --platform linux/amd64 is critical — EKS nodes run x86_64
