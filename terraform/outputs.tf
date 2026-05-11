@@ -50,3 +50,29 @@ output "docker_login_command" {
   description = "Command to authenticate Docker with ECR"
   value       = "aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.backend.repository_url}"
 }
+
+# EKS Outputs
+output "eks_cluster_name" {
+  description = "EKS cluster name"
+  value       = aws_eks_cluster.tracelink.name
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS API server endpoint"
+  value       = aws_eks_cluster.tracelink.endpoint
+}
+
+output "eks_cluster_version" {
+  description = "Kubernetes version running on the cluster"
+  value       = aws_eks_cluster.tracelink.version
+}
+
+output "eks_oidc_issuer" {
+  description = "OIDC issuer URL — needed for IRSA (IAM Roles for Service Accounts)"
+  value       = aws_eks_cluster.tracelink.identity[0].oidc[0].issuer
+}
+
+output "kubeconfig_update_command" {
+  description = "Run this to update your local kubeconfig and start using kubectl"
+  value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.tracelink.name}"
+}
